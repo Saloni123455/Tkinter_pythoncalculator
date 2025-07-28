@@ -1,0 +1,168 @@
+import tkinter as tk
+
+class Calculator:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Tkinter Calculator")
+        self.root.resizable(False, False)
+
+        self.expression = ""
+
+        self.entry = tk.Entry(root, font=("Arial", 24), bd=10, relief=tk.RIDGE, justify="right")
+        self.entry.grid(row=0, column=0, columnspan=5, padx=10, pady=10)
+        self.entry.focus()
+
+        self.root.bind("<Key>", self.key_input)
+        self.create_buttons()
+
+    def create_buttons(self):
+        btn_texts = [
+            ('C', 'DEL', '%', '/'),
+            ('7', '8', '9', '*'),
+            ('4', '5', '6', '-'),
+            ('1', '2', '3', '+'),
+            ('+/-', '0', '.', '='),
+        ]
+
+        for r, row in enumerate(btn_texts, 1):
+            for c, char in enumerate(row):
+                colspan = 1
+                if char == '=':
+                    colspan = 2
+                tk.Button(
+                    self.root,
+                    text=char,
+                    width=5,
+                    height=2,
+                    font=("Arial", 20),
+                    command=lambda ch=char: self.on_button_click(ch)
+                ).grid(row=r, column=c, padx=5, pady=5, columnspan=colspan, sticky="nsew")
+
+    def on_button_click(self, char):
+        if char == 'C':
+            self.expression = ""
+        elif char == 'DEL':
+            self.expression = self.expression[:-1]
+        elif char == '=':
+            self.evaluate()
+        elif char == '+/-':
+            self.toggle_sign()
+        elif char == '.':
+            if self.can_add_decimal():
+                self.expression += '.'
+        elif char == '%':
+            self.handle_percentage()
+        else:
+            if len(self.expression) == 0 and char in '*/':
+                return  # prevent invalid start
+            self.expression += char
+        self.update_display()
+
+    def key_input(self, event):
+        key = event.char
+        if key in '0123456789+-*/.%':
+            if len(self.expression) == 0 and key in '*/':
+                return
+            if key == '.' and not self.can_add_decimal():
+                return
+            self.expression += key
+        elif event.keysym == 'Return':
+            self.evaluate()
+        elif event.keysym == 'BackSpace':
+            self.expression = self.expression[:-1]
+        elif key.lower() == 'c':
+            self.expression = ""
+        self.update_display()
+
+    def toggle_sign(self):
+        try:
+            if self.expression:
+                tokens = self.expression.split()
+                if tokens[-1].lstrip('-').replace('.', '', 1).isdigit():
+                    if tokens[-1].startswith('-'):
+                        tokens[-1] = tokens[-1][1:]
+                    else:
+                        tokens[-1] = '-' + tokens[-1]
+                    self.expression = " ".join(tokens)
+                else:
+                    self.expression = '-' + self.expression
+        except:
+            pass
+
+    def can_add_decimal(self):
+        num = ''
+        for ch in reversed(self.expression):
+            if ch in '+-*/%':
+                break
+            num = ch + num
+        return '.' not in num
+
+    def handle_percentage(self):
+        try:
+            for op in ('+', '-', '*', '/','%'):
+                if op in self.expression:
+                    parts = self.expression.rsplit(op, 1)
+                    if len(parts) == 2 and parts[1].replace('.', '', 1).isdigit():
+                        a, b = parts
+                        if op in '+-':
+                            result = f"{a}{op}({a}*{parts[1]}/100)"
+                        else:
+                            result = f"{a}{op}({parts[1]}/100)"
+                        self.expression = result
+                        break
+        except:
+            self.expression = "Error"
+        self.update_display()
+
+    def evaluate(self):
+        try:
+            # Prevent expression ending with an operator
+            if self.expression[-1] in '+-*/.':
+                self.expression = self.expression[:-1]
+            result = eval(self.expression)
+            self.expression = str(round(result, 10))
+        except ZeroDivisionError:
+            self.expression = "Error: DivBy0"
+        except:
+            self.expression = "Error"
+        self.update_display()
+
+    def update_display(self):
+        self.entry.delete(0, tk.END)
+        self.entry.insert(tk.END, self.expression)
+
+    def handle_percentage(self):
+        try:
+            if not self.expression:
+                return
+
+            # If ends with %, ignore
+            if self.expression.strip().endswith('%'):
+                return
+
+            # Try to find last operator
+            for op in reversed(self.expression):
+                if op in '+-*/':
+                    idx = self.expression.rfind(op)
+                    first = self.expression[:idx]
+                    second = self.expression[idx + 1:]
+
+                    if op in '+-':
+                        self.expression = f"{first}{op}({first}*{second}/100)"
+                    else:  # * or /
+                        self.expression = f"{first}{op}({second}/100)"
+                    break
+            else:
+                # No operator, treat current number as a percentage
+                if self.expression.replace('.', '', 1).isdigit():
+                    self.expression = str(float(self.expression) / 100)
+        except:
+            self.expression = "Error"
+
+        self.update_display()
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    calc = Calculator(root)
+    root.mainloop()
